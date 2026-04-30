@@ -23,6 +23,7 @@ const controller = {
   systemPass: localStorage.getItem("saved_pass") || "123",
   currentUser: null,
   dbConnected: false,
+  ORS_TOKEN: "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImY3NjcyNGIxYjE4ODRhODA5ZDUxMmNiNzM3MDFkNjk5IiwiaCI6Im11cm11cjY0In0=",
 
   // === INITIALIZATION ===
   async init() {
@@ -874,7 +875,7 @@ const controller = {
   //         headers: {
   //           Accept: "application/json, application/geo+json",
   //           "Content-Type": "application/json",
-  //           Authorization: ORS_TOKEN,
+  //           Authorization: this.ORS_TOKEN,
   //         },
   //         body: JSON.stringify(bodyParams),
   //       },
@@ -954,9 +955,9 @@ const controller = {
 
     this.clearRouteLayers();
 
-    document.getElementById("route-path").innerHTML = '<span class="text-primary">🔄 Menghitung rute optimal...</span>'; // ORS API Token
+    document.getElementById("route-path").innerHTML = '<span class="text-primary">🔄 Menghitung rute optimal...</span>';
 
-    const ORS_TOKEN = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImY3NjcyNGIxYjE4ODRhODA5ZDUxMmNiNzM3MDFkNjk5IiwiaCI6Im11cm11cjY0In0="; // Create avoidance polygons for damage points
+    // Create avoidance polygons for damage points
 
     const offset = 0.00015; // ~16 meters
     const avoidPolygonsCoords = this.damagePoints.map((dp) => {
@@ -1006,7 +1007,7 @@ const controller = {
         headers: {
           Accept: "application/json, application/geo+json",
           "Content-Type": "application/json",
-          Authorization: ORS_TOKEN,
+          Authorization: this.ORS_TOKEN,
         },
         body: JSON.stringify(bodyParams),
       });
@@ -1039,7 +1040,7 @@ const controller = {
     const destCoord = [destination.longitude, destination.latitude];
 
     // === DIJKSTRA FALLBACK SYSTEM ===
-    const tryDijkstraRoute = () => {
+    const tryDijkstraRoute = async () => {
       console.log("[DIJKSTRA] Mencari jalur alternatif menggunakan Dijkstra...");
       this.buildGraph();
 
@@ -1048,7 +1049,9 @@ const controller = {
 
       if (result.path.length > 0 && result.cost < Infinity) {
         console.log(`[DIJKSTRA] Jalur ditemukan: ${result.path.join(" > ")} dengan cost ${result.cost}`);
-        this.drawRouteFromPath(result.path, result.cost, start, destination);
+
+        // Ganti drawRouteFromPath dengan versi yang pakai ORS per segment
+        await this.drawRouteFromPathWithORS(result.path, start, destination);
         return true;
       } else {
         console.warn("[DIJKSTRA] Tidak ada jalur aman tersedia");
@@ -1181,6 +1184,168 @@ const controller = {
       <div class="text-success fw-bold mb-1"><i class="bi bi-check-circle me-1"></i> RUTE AMAN (Dijkstra)</div>
       <div class="small mb-1">${start.siteName} <i class="bi bi-arrow-right mx-1"></i> ${dest.siteName}</div>
       <div class="small text-muted">${distanceKm} km | Est: ${estDuration} menit</div>
+      <div class="small text-muted mt-1">Via: ${pathIds.map(id => this.sites[id]?.siteName || id).join(" <i class='bi bi-chevron-right mx-1'></i> ")}</div>
+    `;
+
+    document.getElementById("route-path").innerHTML = uiHTML;
+    document.getElementById("route-instructions").innerHTML = "";
+  },
+
+  // === DRAW ROUTE FROM DIJKSTRA PATH WITH ORS (REAL ROAD GEOMETRY) ===
+  async drawRouteFromPathWithORS(pathIds, start, dest) {
+    console.log("[DIJKSTRA-ORS] Drawing route for path:", pathIds.join(" → "));
+
+    if (pathIds.length < 2) {
+      console.warn("[DIJKSTRA-ORS] Path too short");
+      return;
+    }
+
+    const allCoords = [];
+    let totalDistance = 0;
+    let totalDuration = 0;
+    let failedSegments = 0;
+
+    // Process each segment sequentially
+    for (let i = 0; i < pathIds.length - 1; i++) {
+      const fromId = pathIds[i];
+      const toId = pathIds[i + 1];
+      const fromSite = this.sites[fromId];
+      const toSite = this.sites[toId];
+
+      if (!fromSite || !toSite) {
+        console.warn(`[DIJKSTRA-ORS] Missing site: ${!fromSite ? fromId : toId}`);
+        continue;
+      }
+
+      console.log(`[DIJKSTRA-ORS] Fetching: ${fromSite.siteName} → ${toSite.siteName}`);
+
+      const fromCoord = [fromSite.longitude, fromSite.latitude];
+      const toCoord = [toSite.longitude, toSite.latitude];
+
+      try {
+        const response = await fetch(
+          "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+          {
+            method: "POST",
+            headers: {
+              "Accept": "application/json, application/geo+json",
+              "Content-Type": "application/json",
+              "Authorization": this.ORS_TOKEN,
+            },
+            body: JSON.stringify({
+              coordinates: [fromCoord, toCoord],
+              elevation: false,
+              instructions: false,
+              format: "geojson",
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error(`[DIJKSTRA-ORS] HTTP ${response.status}:`, errText);
+          throw new Error(`ORS HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.features || !data.features[0]) {
+          console.warn(`[DIJKSTRA-ORS] No features in response`);
+          throw new Error("No features");
+        }
+
+        const segmentCoords = data.features[0].geometry.coordinates;
+
+        if (!segmentCoords || segmentCoords.length < 2) {
+          console.warn(`[DIJKSTRA-ORS] Not enough coords`);
+          throw new Error("Not enough coords");
+        }
+
+        // Convert from [lng, lat] to [lat, lng] for Leaflet
+        const convertedCoords = segmentCoords.map(c => [c[1], c[0]]);
+
+        console.log(`[DIJKSTRA-ORS] Got ${convertedCoords.length} points`);
+
+        // Avoid duplicate junction points
+        if (allCoords.length > 0) {
+          allCoords.pop();
+        }
+        allCoords.push(...convertedCoords);
+
+        // Accumulate stats
+        if (data.features[0].properties.summary) {
+          totalDistance += data.features[0].properties.summary.distance;
+          totalDuration += data.features[0].properties.summary.duration;
+        }
+
+      } catch (err) {
+        console.warn(`[DIJKSTRA-ORS] Failed segment, using straight line:`, err.message);
+        failedSegments++;
+
+        // Fallback: add straight line between sites
+        const fromPoint = [fromSite.latitude, fromSite.longitude];
+        const toPoint = [toSite.latitude, toSite.longitude];
+
+        if (allCoords.length === 0) {
+          allCoords.push(fromPoint);
+        }
+        allCoords.push(toPoint);
+      }
+    }
+
+    console.log(`[DIJKSTRA-ORS] Done. ${allCoords.length} points, ${failedSegments} failed`);
+
+    if (allCoords.length < 2) {
+      console.error("[DIJKSTRA-ORS] Not enough coords to draw");
+      this.drawRouteFromPath(pathIds, 0, start, dest);
+      return;
+    }
+
+    // Remove consecutive duplicates
+    const cleanCoords = [allCoords[0]];
+    for (let i = 1; i < allCoords.length; i++) {
+      const prev = cleanCoords[cleanCoords.length - 1];
+      const curr = allCoords[i];
+      const isDuplicate = (Math.abs(prev[0] - curr[0]) < 0.00001 && Math.abs(prev[1] - curr[1]) < 0.00001);
+      if (!isDuplicate) {
+        cleanCoords.push(curr);
+      }
+    }
+
+    console.log(`[DIJKSTRA-ORS] Clean coords: ${cleanCoords.length} points`);
+
+    // Remove existing layer
+    if (this.currentRouteLayer) {
+      this.map.removeLayer(this.currentRouteLayer);
+    }
+
+    // Draw polyline
+    this.currentRouteLayer = L.polyline(cleanCoords, {
+      color: "#27ae60",
+      weight: 6,
+      opacity: 0.85,
+      lineCap: "round",
+      lineJoin: "round",
+    }).addTo(this.map);
+
+    this.map.fitBounds(this.currentRouteLayer.getBounds(), {
+      padding: [50, 50],
+    });
+
+    this.currentRouteCoords = cleanCoords;
+
+    // Update UI
+    const distanceKm = (totalDistance / 1000).toFixed(2);
+    const durationMin = Math.round(totalDuration / 60);
+
+    let uiHTML = `
+      <div class="text-success fw-bold mb-1">
+        <i class="bi bi-check-circle me-1"></i>
+        ${failedSegments === 0 ? 'RUTE AMAN' : 'RUTE DENGAN FALLBACK'}
+        ${failedSegments > 0 ? ` (${failedSegments} segment pakai garis lurus)` : ''}
+      </div>
+      <div class="small mb-1">${start.siteName} <i class="bi bi-arrow-right mx-1"></i> ${dest.siteName}</div>
+      <div class="small text-muted">${distanceKm} km | Est: ${durationMin} menit</div>
       <div class="small text-muted mt-1">Via: ${pathIds.map(id => this.sites[id]?.siteName || id).join(" <i class='bi bi-chevron-right mx-1'></i> ")}</div>
     `;
 
