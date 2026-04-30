@@ -265,38 +265,366 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
         z-index: 9999;
+        display: flex;
+      }
+
+      /* Left Panel - Image */
+      .login-image-panel {
+        flex: 1.2;
+        background:
+          linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(14, 165, 233, 0.25) 100%),
+          url('https://images.unsplash.com/photo-1581059686229-de26e6ae5dc4?q=80&w=1744&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') center/cover no-repeat;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 4rem;
+      }
+
+      .login-image-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(14, 165, 233, 0.3) 100%);
+      }
+
+      .login-image-content {
+        position: relative;
+        z-index: 1;
+        color: white;
+        max-width: 480px;
+      }
+
+      .login-image-content h2 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1.2;
+        margin-bottom: 1rem;
+      }
+
+      .login-image-content p {
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.6;
+        margin-bottom: 2rem;
+      }
+
+      .login-brand-big {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .login-brand-big-icon {
+        width: 64px;
+        height: 64px;
+        background: var(--accent);
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.75rem;
+        color: white;
+        box-shadow: 0 8px 32px rgba(14, 165, 233, 0.4);
       }
 
-      .login-container { width: 100%; max-width: 420px; padding: 2rem; }
-      .login-card { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; }
-      .login-header {
-        padding: 2rem 2rem 1.5rem;
-        text-align: center;
-        background: var(--gray-50);
-        border-bottom: 1px solid var(--gray-200);
+      .login-brand-big-text {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1.2;
       }
-      .login-logo {
-        width: 56px;
-        height: 56px;
-        background: var(--accent);
-        border-radius: var(--radius);
-        display: inline-flex;
+
+      .login-brand-big-text span {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .login-features {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .login-feature-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .login-feature-item i {
+        width: 28px;
+        height: 28px;
+        background: rgba(14, 165, 233, 0.3);
+        border-radius: 8px;
+        display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
-        font-weight: 700;
-        font-size: 1.25rem;
-        margin-bottom: 1rem;
+        color: #7dd3fc;
       }
-      .login-title { font-size: 1.25rem; font-weight: 600; color: var(--primary); margin-bottom: 0.25rem; }
-      .login-subtitle { font-size: 0.875rem; color: var(--gray-500); }
-      .login-body { padding: 1.5rem 2rem 2rem; }
-      .login-footer { padding: 1rem 2rem; background: var(--gray-50); border-top: 1px solid var(--gray-200); text-align: center; }
+
+      /* Right Panel - Form */
+      .login-form-panel {
+        width: 480px;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 3rem;
+        box-shadow: -20px 0 60px rgba(0, 0, 0, 0.1);
+      }
+
+      .login-form-header {
+        margin-bottom: 2.5rem;
+      }
+
+      .login-form-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+      }
+
+      .login-form-header p {
+        color: var(--gray-500);
+        font-size: 0.95rem;
+      }
+
+      .login-form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      .login-form-group label {
+        display: block;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--gray-600);
+        margin-bottom: 0.5rem;
+      }
+
+      .login-input-wrapper {
+        position: relative;
+      }
+
+      .login-input-wrapper i.input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-400);
+        font-size: 1.1rem;
+        pointer-events: none;
+      }
+
+      .login-input-wrapper .form-control {
+        padding-left: 2.75rem;
+        padding-right: 2.75rem;
+        height: 48px;
+        font-size: 0.95rem;
+      }
+
+      .login-input-wrapper .form-select {
+        padding-left: 2.75rem;
+        height: 48px;
+        font-size: 0.95rem;
+      }
+
+      .login-password-toggle {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        cursor: pointer;
+        padding: 0.5rem;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.15s ease;
+      }
+
+      .login-password-toggle:hover {
+        color: var(--gray-600);
+      }
+
+      .login-options {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+
+      .login-options .form-check-label {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+      }
+
+      .login-forgot-link {
+        font-size: 0.875rem;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .login-forgot-link:hover {
+        text-decoration: underline;
+      }
+
+      .login-btn-submit {
+        width: 100%;
+        height: 52px;
+        font-size: 1rem;
+        font-weight: 600;
+        background: var(--accent);
+        border: none;
+        border-radius: var(--radius);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+      }
+
+      .login-btn-submit:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+      }
+
+      .login-btn-submit:active {
+        transform: translateY(0);
+      }
+
+      .login-divider {
+        display: flex;
+        align-items: center;
+        margin: 1.5rem 0;
+        color: var(--gray-400);
+        font-size: 0.8125rem;
+      }
+
+      .login-divider::before,
+      .login-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--gray-200);
+      }
+
+      .login-divider span {
+        padding: 0 1rem;
+      }
+
+      .login-change-pass-btn {
+        width: 100%;
+        padding: 0.75rem;
+        background: transparent;
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius);
+        color: var(--gray-600);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+
+      .login-change-pass-btn:hover {
+        background: var(--gray-50);
+        border-color: var(--gray-400);
+        color: var(--gray-700);
+      }
+
+      .login-change-pass-section {
+        background: var(--gray-50);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        margin-top: 1rem;
+        border: 1px solid var(--gray-200);
+      }
+
+      .login-change-pass-section h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--danger);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .login-change-pass-section input {
+        margin-bottom: 0.75rem;
+      }
+
+      .login-footer {
+        margin-top: 2rem;
+        text-align: center;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--gray-200);
+      }
+
+      .login-footer p {
+        font-size: 0.8125rem;
+        color: var(--gray-500);
+      }
+
+      .login-input-with-toggle .form-control {
+        padding-right: 3rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        #login-overlay {
+          flex-direction: column;
+        }
+        .login-image-panel {
+          height: 280px;
+          flex: none;
+        }
+        .login-form-panel {
+          width: 100%;
+          padding: 2rem;
+        }
+        .login-image-content h2 {
+          font-size: 1.75rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .login-image-panel {
+          height: 220px;
+          padding: 2rem 1.5rem;
+        }
+        .login-form-panel {
+          padding: 1.5rem;
+        }
+        .login-brand-big-icon {
+          width: 48px;
+          height: 48px;
+          font-size: 1.25rem;
+        }
+        .login-brand-big-text {
+          font-size: 1.2rem;
+        }
+      }
 
       /* ==================== LOADING ==================== */
       .loading-overlay {
@@ -389,59 +717,126 @@
 
     <!-- Login Overlay -->
     <div id="login-overlay">
-      <div class="login-container">
-        <div class="login-card">
-          <div class="login-header">
-            <div class="login-logo"><i class="bi bi-shield-check"></i></div>
-            <h1 class="login-title">SIM Logistik Bencana</h1>
-            <p class="login-subtitle">Provinsi Sumatera Utara</p>
-          </div>
-          <div class="login-body">
-            <form id="main-login-form" onsubmit="controller.handleLogin(event)">
-              <div class="mb-3">
-                <label class="form-label">Pilih Akses Pengguna</label>
-                <select id="login-role" class="form-select" required>
-                  <option value="" disabled selected>Pilih role...</option>
-                  <option value="Administrator">Administrator</option>
-                  <option value="Koordinator">Koordinator Logistik</option>
-                  <option value="Petugas Lapangan">Petugas Lapangan</option>
-                  <option value="Petugas Gudang">Petugas Gudang</option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="form-label">Password Sistem</label>
-                <input type="password" id="login-pass" class="form-control" placeholder="Masukkan password" required />
-                <div class="form-text">Default: 123</div>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="rememberMe" checked />
-                  <label class="form-check-label" for="rememberMe">Ingat saya</label>
-                </div>
-                <a href="#" class="small text-decoration-none" onclick="alert('Hubungi IT Support untuk reset password.')">Lupa password?</a>
-              </div>
-              <button type="submit" class="btn btn-primary w-100 py-2">
-                <i class="bi bi-box-arrow-in-right me-2"></i>Masuk ke Dashboard
-              </button>
-            </form>
-            <div id="change-pass-section" class="d-none mt-4 pt-4 border-top">
-              <p class="small fw-bold text-danger mb-3">Ganti Password Sistem</p>
-              <input type="password" id="pass-old" class="form-control mb-2" placeholder="Password Lama" />
-              <input type="password" id="pass-new" class="form-control mb-3" placeholder="Password Baru (min. 3 karakter)" />
-              <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="controller.handleChangePassword()">Update & Simpan</button>
-            </div>
-            <div class="text-center mt-4">
-              <button class="btn btn-link btn-sm text-muted text-decoration-none" onclick="document.getElementById('change-pass-section').classList.toggle('d-none')">
-                <i class="bi bi-gear"></i> Ganti Password
-              </button>
+      <!-- Left Panel - Image -->
+      <div class="login-image-panel">
+        <div class="login-image-overlay"></div>
+        <div class="login-image-content">
+          <div class="login-brand-big">
+            <div class="login-brand-big-icon"><i class="bi bi-shield-check"></i></div>
+            <div class="login-brand-big-text">
+              SIM Logistik Bencana
+              <span>BPBD Provinsi Sumatera Utara</span>
             </div>
           </div>
-          <div class="login-footer">
-            <small class="text-muted">BPBD Sumatera Utara 2026</small>
+          <h2>Sistem Informasi Manajemen Logistik Penanganan Bencana</h2>
+          <p>Kelola distribusi bantuan, pantau jalur aman, dan koordinasikan posko pengungsian secara real-time.</p>
+          <div class="login-features">
+            <div class="login-feature-item">
+              <i class="bi bi-geo-alt"></i>
+              <span>Peta Interaktif Seluruh Sumatera Utara</span>
+            </div>
+            <div class="login-feature-item">
+              <i class="bi bi-arrow-left-right"></i>
+              <span>Rute Distribusi Otomatis Area Rusak</span>
+            </div>
+            <div class="login-feature-item">
+              <i class="bi bi-box-seam"></i>
+              <span>Monitoring Stok inventori Real-time</span>
+            </div>
+            <div class="login-feature-item">
+              <i class="bi bi-printer"></i>
+              <span>Laporan Cetak Standar BPBD</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Right Panel - Form -->
+      <div class="login-form-panel">
+        <div class="login-form-header">
+          <h1>Selamat Datang</h1>
+          <p>Silakan masuk dengan kredensial Anda</p>
+        </div>
+
+        <form id="main-login-form" onsubmit="controller.handleLogin(event)">
+          <div class="login-form-group">
+            <label>Pilih Akses Pengguna</label>
+            <div class="login-input-wrapper">
+              <i class="bi bi-people input-icon"></i>
+              <select id="login-role" class="form-select" required>
+                <option value="" disabled selected>Pilih role...</option>
+                <option value="Administrator">Administrator</option>
+                <option value="Koordinator">Koordinator Logistik</option>
+                <option value="Petugas Lapangan">Petugas Lapangan</option>
+                <option value="Petugas Gudang">Petugas Gudang</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="login-form-group">
+            <label>Password Sistem</label>
+            <div class="login-input-wrapper login-input-with-toggle">
+              <i class="bi bi-lock input-icon"></i>
+              <input type="password" id="login-pass" class="form-control" placeholder="Masukkan password" required />
+              <button type="button" class="login-password-toggle" onclick="togglePassword()">
+                <i class="bi bi-eye" id="toggle-icon"></i>
+              </button>
+            </div>
+            <div class="form-text">Default: 123</div>
+          </div>
+
+          <div class="login-options">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rememberMe" checked />
+              <label class="form-check-label" for="rememberMe">Ingat saya</label>
+            </div>
+            <a href="#" class="login-forgot-link" onclick="alert('Hubungi IT Support untuk reset password.')">Lupa password?</a>
+          </div>
+
+          <button type="submit" class="login-btn-submit">
+            <i class="bi bi-box-arrow-in-right"></i>
+            Masuk ke Dashboard
+          </button>
+        </form>
+
+        <div class="login-divider"><span>atau</span></div>
+
+        <button class="login-change-pass-btn" onclick="toggleChangePass()">
+          <i class="bi bi-gear"></i>
+          Ganti Password Sistem
+        </button>
+
+        <div id="change-pass-section" class="login-change-pass-section d-none">
+          <h6><i class="bi bi-key"></i> Ganti Password Sistem</h6>
+          <input type="password" id="pass-old" class="form-control" placeholder="Password Lama" />
+          <input type="password" id="pass-new" class="form-control" placeholder="Password Baru (min. 3 karakter)" />
+          <button type="button" class="btn btn-primary w-100" onclick="controller.handleChangePassword()">Update & Simpan</button>
+        </div>
+
+        <div class="login-footer">
+          <p>BPBD Sumatera Utara &copy; 2026</p>
+        </div>
+      </div>
     </div>
+
+    <script>
+      function togglePassword() {
+        const passInput = document.getElementById('login-pass');
+        const icon = document.getElementById('toggle-icon');
+        if (passInput.type === 'password') {
+          passInput.type = 'text';
+          icon.className = 'bi bi-eye-slash';
+        } else {
+          passInput.type = 'password';
+          icon.className = 'bi bi-eye';
+        }
+      }
+
+      function toggleChangePass() {
+        const section = document.getElementById('change-pass-section');
+        section.classList.toggle('d-none');
+      }
+    </script>
 
     <!-- Sidebar Navigation -->
     <div class="sidebar d-none" id="app-sidebar">
