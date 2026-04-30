@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIM Logistik Bencana Provinsi Sumatera Utara</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      /* ==================== CSS VARIABLES ==================== */
+      :root {
+        --primary: #0f172a;
+        --primary-light: #1e293b;
+        --primary-lighter: #334155;
+        --accent: #0ea5e9;
+        --accent-hover: #0284c7;
+        --success: #10b981;
+        --success-light: #d1fae5;
+        --warning: #f59e0b;
+        --warning-light: #fef3c7;
+        --danger: #ef4444;
+        --danger-light: #fee2e2;
+        --gray-50: #f8fafc;
+        --gray-100: #f1f5f9;
+        --gray-200: #e2e8f0;
+        --gray-300: #cbd5e1;
+        --gray-400: #94a3b8;
+        --gray-500: #64748b;
+        --gray-600: #475569;
+        --gray-700: #334155;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        --radius: 0.5rem;
+        --radius-lg: 0.75rem;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--gray-100);
+        color: var(--gray-700);
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      h1, h2, h3, h4, h5, h6 { color: var(--primary); font-weight: 600; margin: 0; }
+
+      /* ==================== SIDEBAR ==================== */
+      .sidebar {
+        height: 100vh;
+        background: var(--primary);
+        color: white;
+        position: fixed;
+        width: 260px;
+        padding: 0;
+        z-index: 1000;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--primary-light);
+      }
+
+      .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none;
+        color: white;
+      }
+
+      .sidebar-brand-icon {
+        width: 36px;
+        height: 36px;
+        background: var(--accent);
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+      }
+
+      .sidebar-brand-text { font-weight: 600; font-size: 0.95rem; }
+      .sidebar-brand-subtitle { font-size: 0.65rem; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.05em; }
+
+      .sidebar-nav { padding: 1rem 0.75rem; flex: 1; }
+      .nav-section { margin-bottom: 1.5rem; }
+      .nav-section-title { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-500); padding: 0 0.75rem; margin-bottom: 0.5rem; }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        color: var(--gray-400);
+        text-decoration: none;
+        border-radius: var(--radius);
+        transition: all 0.15s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+      }
+
+      .nav-item:hover { background: var(--primary-light); color: white; }
+      .nav-item.active { background: var(--accent); color: white; }
+      .nav-item i { font-size: 1.1rem; width: 20px; text-align: center; }
+
+      .sidebar-footer { padding: 1rem 0.75rem; border-top: 1px solid var(--primary-light); }
+
+      .sidebar-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        color: var(--gray-400);
+        text-decoration: none;
+        border-radius: var(--radius);
+        transition: all 0.15s ease;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        margin-bottom: 0.25rem;
+      }
+
+      .sidebar-btn:hover { background: var(--primary-light); color: white; }
+      .sidebar-btn.danger:hover { background: var(--danger); color: white; }
+
+      /* ==================== MAIN CONTENT ==================== */
+      .main { margin-left: 260px; padding: 2rem; min-height: 100vh; }
+      .page-header { margin-bottom: 2rem; }
+      .page-title { font-size: 1.5rem; font-weight: 600; color: var(--primary); margin-bottom: 0.25rem; }
+      .page-subtitle { color: var(--gray-500); font-size: 0.875rem; }
+
+      /* ==================== CARDS ==================== */
+      .card {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.2s ease;
+      }
+      .card:hover { box-shadow: var(--shadow); }
+      .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--gray-200);
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-title { font-size: 1rem; font-weight: 600; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+      .card-title i { color: var(--accent); }
+      .card-body { padding: 1.25rem; }
+
+      /* ==================== BUTTONS ==================== */
+      .btn {
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius);
+        font-size: 0.875rem;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border: 1px solid transparent;
+      }
+
+      .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+      .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: white; }
+      .btn-success { background: var(--success); border-color: var(--success); color: white; }
+      .btn-success:hover { background: #059669; border-color: #059669; color: white; }
+      .btn-warning { background: var(--warning); border-color: var(--warning); color: white; }
+      .btn-warning:hover { background: #d97706; border-color: #d97706; color: white; }
+      .btn-danger { background: var(--danger); border-color: var(--danger); color: white; }
+      .btn-danger:hover { background: #dc2626; border-color: #dc2626; color: white; }
+      .btn-outline-primary { color: var(--accent); border-color: var(--gray-300); background: transparent; }
+      .btn-outline-primary:hover { background: var(--accent); border-color: var(--accent); color: white; }
+      .btn-outline-danger { color: var(--danger); border-color: var(--gray-300); background: transparent; }
+      .btn-outline-danger:hover { background: var(--danger); border-color: var(--danger); color: white; }
+      .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+      .btn-lg { padding: 0.625rem 1.25rem; font-size: 1rem; }
+
+      /* ==================== FORM ELEMENTS ==================== */
+      .form-control, .form-select {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius);
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        background: white;
+      }
+      .form-control:focus, .form-select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        outline: none;
+      }
+      .form-label { font-size: 0.8125rem; font-weight: 500; color: var(--gray-600); margin-bottom: 0.375rem; }
+      .form-text { font-size: 0.75rem; color: var(--gray-500); }
+
+      /* ==================== MAP ==================== */
+      #map {
+        height: 480px;
+        width: 100%;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow);
+        border: 1px solid var(--gray-200);
+        background: #f8f9fa;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ==================== TABLES ==================== */
+      .table { font-size: 0.875rem; color: var(--gray-700); }
+      .table thead th {
+        font-weight: 600;
+        color: var(--gray-600);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+        padding: 0.75rem 1rem;
+      }
+      .table tbody td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+      .table tbody tr:hover { background: var(--gray-50); }
+      .table tbody tr:last-child td { border-bottom: none; }
+
+      /* ==================== BADGES ==================== */
+      .badge { font-weight: 500; font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 9999px; }
+      .badge-success { background: var(--success-light); color: #065f46; }
+      .badge-warning { background: var(--warning-light); color: #92400e; }
+      .badge-danger { background: var(--danger-light); color: #991b1b; }
+
+      /* ==================== LOGIN PAGE ==================== */
+      #login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .login-container { width: 100%; max-width: 420px; padding: 2rem; }
+      .login-card { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; }
+      .login-header {
+        padding: 2rem 2rem 1.5rem;
+        text-align: center;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+      }
+      .login-logo {
+        width: 56px;
+        height: 56px;
+        background: var(--accent);
+        border-radius: var(--radius);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+      }
+      .login-title { font-size: 1.25rem; font-weight: 600; color: var(--primary); margin-bottom: 0.25rem; }
+      .login-subtitle { font-size: 0.875rem; color: var(--gray-500); }
+      .login-body { padding: 1.5rem 2rem 2rem; }
+      .login-footer { padding: 1rem 2rem; background: var(--gray-50); border-top: 1px solid var(--gray-200); text-align: center; }
+
+      /* ==================== LOADING ==================== */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.9);
+        z-index: 9998;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: white;
+        backdrop-filter: blur(4px);
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 1rem;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* ==================== STATUS INDICATOR ==================== */
+      .db-status {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        z-index: 1001;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        background: white;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--gray-200);
+      }
+      .db-status.connected { color: var(--success); }
+      .db-status.disconnected { color: var(--danger); }
+      .db-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+      .db-status.connected::before { animation: pulse 2s infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+      /* ==================== UTILITIES ==================== */
+      .text-accent { color: var(--accent); }
+      .text-success-custom { color: var(--success); }
+      .text-warning-custom { color: var(--warning); }
+      .text-danger-custom { color: var(--danger); }
+
+      /* ==================== RESPONSIVE ==================== */
+      @media (max-width: 1024px) {
+        .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; overflow-x: auto; }
+        .main { margin-left: 0; padding: 1rem; }
+        .sidebar-header, .sidebar-footer { display: none; }
+        .sidebar-nav { display: flex; padding: 0.5rem; gap: 0.5rem; }
+        .nav-section { display: flex; margin: 0; }
+        .nav-section-title { display: none; }
+        .nav-item { white-space: nowrap; padding: 0.5rem 0.75rem; }
+      }
+
+      @media (max-width: 768px) {
+        #map { height: 350px; }
+        .page-title { font-size: 1.25rem; }
+      }
+
+      /* ==================== PRINT ==================== */
+      @media print {
+        body * { visibility: hidden; }
+        #print-report-area, #print-report-area * { visibility: visible; }
+        #print-report-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 0 !important; margin: 0 !important; }
+        body { background: white !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="spinner"></div>
+      <div>Memuat...</div>
+      <small id="loading-status" class="mt-2 opacity-75">Menghubungkan ke database...</small>
+    </div>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay">
+      <div class="login-container">
+        <div class="login-card">
+          <div class="login-header">
+            <div class="login-logo"><i class="bi bi-shield-check"></i></div>
+            <h1 class="login-title">SIM Logistik Bencana</h1>
+            <p class="login-subtitle">Provinsi Sumatera Utara</p>
+          </div>
+          <div class="login-body">
+            <form id="main-login-form" onsubmit="controller.handleLogin(event)">
+              <div class="mb-3">
+                <label class="form-label">Pilih Akses Pengguna</label>
+                <select id="login-role" class="form-select" required>
+                  <option value="" disabled selected>Pilih role...</option>
+                  <option value="Administrator">Administrator</option>
+                  <option value="Koordinator">Koordinator Logistik</option>
+                  <option value="Petugas Lapangan">Petugas Lapangan</option>
+                  <option value="Petugas Gudang">Petugas Gudang</option>
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Password Sistem</label>
+                <input type="password" id="login-pass" class="form-control" placeholder="Masukkan password" required />
+                <div class="form-text">Default: 123</div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="rememberMe" checked />
+                  <label class="form-check-label" for="rememberMe">Ingat saya</label>
+                </div>
+                <a href="#" class="small text-decoration-none" onclick="alert('Hubungi IT Support untuk reset password.')">Lupa password?</a>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 py-2">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Masuk ke Dashboard
+              </button>
+            </form>
+            <div id="change-pass-section" class="d-none mt-4 pt-4 border-top">
+              <p class="small fw-bold text-danger mb-3">Ganti Password Sistem</p>
+              <input type="password" id="pass-old" class="form-control mb-2" placeholder="Password Lama" />
+              <input type="password" id="pass-new" class="form-control mb-3" placeholder="Password Baru (min. 3 karakter)" />
+              <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="controller.handleChangePassword()">Update & Simpan</button>
+            </div>
+            <div class="text-center mt-4">
+              <button class="btn btn-link btn-sm text-muted text-decoration-none" onclick="document.getElementById('change-pass-section').classList.toggle('d-none')">
+                <i class="bi bi-gear"></i> Ganti Password
+              </button>
+            </div>
+          </div>
+          <div class="login-footer">
+            <small class="text-muted">BPBD Sumatera Utara 2026</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar d-none" id="app-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-icon"><i class="bi bi-shield-check"></i></div>
+          <div>
+            <div class="sidebar-brand-text">SIM Logistik</div>
+            <div class="sidebar-brand-subtitle">BPBD Sumatera Utara</div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Menu Utama</div>
+          <button id="nav-koordinator" class="nav-item active" onclick="controller.switchTab('koordinator')"><i class="bi bi-map"></i><span>Koordinator</span></button>
+          <button id="nav-admin" class="nav-item" onclick="controller.switchTab('admin')"><i class="bi bi-gear"></i><span>Administrator</span></button>
+          <button id="nav-lapangan" class="nav-item" onclick="controller.switchTab('tab-lapangan')"><i class="bi bi-clipboard"></i><span>Petugas Lapangan</span></button>
+          <button id="nav-gudang" class="nav-item" onclick="controller.switchTab('gudang')"><i class="bi bi-box-seam"></i><span>Petugas Gudang</span></button>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <button class="sidebar-btn" onclick="controller.prepareReport()"><i class="bi bi-printer"></i><span>Cetak Laporan</span></button>
+        <button class="sidebar-btn" onclick="controller.syncData()"><i class="bi bi-arrow-repeat"></i><span>Sync Data</span></button>
+        <button class="sidebar-btn danger" onclick="controller.handleLogout()"><i class="bi bi-box-arrow-right"></i><span>Logout</span></button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main d-none" id="app-content">
+      <div class="tab-content">
+        <!-- Koordinator Tab -->
+        <div class="tab-pane fade show active" id="koordinator">
+          <div class="page-header">
+            <h1 class="page-title"><i class="bi bi-map me-2 text-accent"></i>Koordinator: Jalur Aman Distribusi</h1>
+            <p class="page-subtitle">Peta lokasi posko dan jalur distribusi bantuan</p>
+          </div>
+          <div class="row g-4">
+            <div class="col-lg-8">
+              <div id="map"></div>
+              <div class="d-flex gap-4 mt-2 text-muted small">
+                <span><i class="bi bi-circle-fill text-success small me-1"></i> Posko Aman</span>
+                <span><i class="bi bi-circle-fill text-danger small me-1"></i> Area Rusak</span>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title"><i class="bi bi-crosshair"></i>Tujuan Distribusi</h3>
+                </div>
+                <div class="card-body">
+                  <select id="dest-select" class="form-select mb-3">
+                    <option value="">Pilih posko tujuan...</option>
+                  </select>
+                  <button class="btn btn-primary w-100" onclick="controller.calculateSafeRoute()">
+                    <i class="bi bi-search"></i>Cari Rute Aman
+                  </button>
+                  <div id="route-path" class="mt-3"></div>
+                  <div id="route-instructions" class="mt-3" style="max-height: 300px; overflow-y: auto;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Administrator Tab -->
+        <div class="tab-pane fade" id="admin">
+          <div class="page-header">
+            <h1 class="page-title"><i class="bi bi-gear me-2 text-accent"></i>Administrator: Kelola Lokasi & Jalan</h1>
+            <p class="page-subtitle">Tambah posko dan tandai jalan rusak</p>
+          </div>
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="card mb-4">
+                <div class="card-header">
+                  <h3 class="card-title"><i class="bi bi-geo-alt"></i>Tambah Posko Baru</h3>
+                </div>
+                <div class="card-body">
+                  <form onsubmit="controller.handleAddSite(event)">
+                    <div class="mb-3">
+                      <input id="adm-name" class="form-control" placeholder="Nama Posko *" required />
+                    </div>
+                    <div class="mb-3">
+                      <input id="adm-addr" class="form-control" placeholder="Alamat (Opsional)" />
+                    </div>
+                    <div class="row g-2 mb-3">
+                      <div class="col-6">
+                        <input id="adm-lat-manual" class="form-control" placeholder="Latitude *" step="any" required />
+                      </div>
+                      <div class="col-6">
+                        <input id="adm-lng-manual" class="form-control" placeholder="Longitude *" step="any" required />
+                      </div>
+                    </div>
+                    <div class="form-text mb-3">Contoh: Lat: 3.595, Lng: 98.672</div>
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-save me-2"></i>Simpan Posko</button>
+                  </form>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title"><i class="bi bi-list-ul"></i>Daftar Posko</h3>
+                </div>
+                <div class="card-body p-0">
+                  <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="table mb-0">
+                      <thead>
+                        <tr><th>Nama Posko</th><th>Aksi</th></tr>
+                      </thead>
+                      <tbody id="site-list-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card mb-4 border-danger">
+                <div class="card-header">
+                  <h3 class="card-title text-danger"><i class="bi bi-exclamation-triangle"></i>Tandai Jalan Rusak</h3>
+                </div>
+                <div class="card-body">
+                  <form onsubmit="controller.handleMarkDamage(event)">
+                    <div class="mb-3">
+                      <input id="dmg-street" class="form-control" placeholder="Nama Jalan Rusak" />
+                    </div>
+                    <div class="row g-2 mb-3">
+                      <div class="col-6">
+                        <input id="dmg-lat-manual" class="form-control" placeholder="Latitude *" step="any" required />
+                      </div>
+                      <div class="col-6">
+                        <input id="dmg-lng-manual" class="form-control" placeholder="Longitude *" step="any" required />
+                      </div>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100"><i class="bi bi-exclamation-circle me-2"></i>Tandai Rusak</button>
+                  </form>
+                </div>
+              </div>
+              <div class="card border-danger">
+                <div class="card-header">
+                  <h3 class="card-title text-danger"><i class="bi bi-list-ul"></i>Daftar Titik Kerusakan</h3>
+                </div>
+                <div class="card-body p-0">
+                  <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="table mb-0">
+                      <thead>
+                        <tr><th>Lokasi</th><th>Aksi</th></tr>
+                      </thead>
+                      <tbody id="damage-list-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Petugas Lapangan Tab -->
+        <div class="tab-pane fade" id="tab-lapangan">
+          <div class="page-header">
+            <h1 class="page-title"><i class="bi bi-clipboard me-2 text-accent"></i>Petugas Lapangan: Laporan Kebutuhan</h1>
+            <p class="page-subtitle">Laporkan kebutuhan logistik di posko pengungsian</p>
+          </div>
+          <div class="row justify-content-center">
+            <div class="col-lg-6">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title"><i class="bi bi-file-text"></i>Form Laporan</h3>
+                </div>
+                <div class="card-body">
+                  <form onsubmit="controller.handleFieldReport(event)">
+                    <div class="mb-3">
+                      <label class="form-label">Posko Pengungsian</label>
+                      <select id="req-site" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Barang Dibutuhkan</label>
+                      <input id="req-item" class="form-control" placeholder="Contoh: Selimut, Makanan, Obat..." required />
+                    </div>
+                    <div class="mb-4">
+                      <label class="form-label">Jumlah (Opsional)</label>
+                      <input id="req-qty" type="number" class="form-control" placeholder="Contoh: 50" min="1" />
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100"><i class="bi bi-send me-2"></i>Kirim Laporan</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Petugas Gudang Tab -->
+        <div class="tab-pane fade" id="gudang">
+          <div class="page-header">
+            <h1 class="page-title"><i class="bi bi-box-seam me-2 text-accent"></i>Petugas Gudang: Manajemen Stok</h1>
+            <p class="page-subtitle">Kelola inventori barang bantuan bencana</p>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="bi bi-table"></i>Daftar Inventori</h3>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead>
+                    <tr><th>Barang</th><th>Posko</th><th>Stok</th><th>Satuan</th><th>Aksi</th></tr>
+                  </thead>
+                  <tbody id="inv-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Print Report Area -->
+      <div id="print-report-area" class="d-none d-print-block p-5">
+        <div class="text-center mb-5">
+          <h1>BPBD PROVINSI SUMATERA UTARA</h1>
+          <h3>Laporan Manajemen Logistik Pasca Bencana</h3>
+          <p class="mb-0">Dicetak pada: <span id="print-date"></span></p>
+          <p class="mb-0">Sistem: SIM Logistik Bencana v1.0</p>
+          <hr style="border: 2px solid black" />
+        </div>
+        <div class="mb-4">
+          <h4>1. Status Inventori Gudang (RF-002)</h4>
+          <table class="table table-bordered border-dark">
+            <thead><tr><th>Nama Barang</th><th>Stok Aktual</th><th>Satuan</th></tr></thead>
+            <tbody id="print-inv-body"></tbody>
+          </table>
+        </div>
+        <div class="mb-4">
+          <h4>2. Daftar Lokasi Posko Pengungsian (RF-001)</h4>
+          <table class="table table-bordered border-dark">
+            <thead><tr><th>ID Posko</th><th>Nama Lokasi</th><th>Koordinat (Lat, Lng)</th></tr></thead>
+            <tbody id="print-site-body"></tbody>
+          </table>
+        </div>
+        <div class="mb-4">
+          <h4>3. Kondisi Aksesibilitas Jalan (RF-004)</h4>
+          <p id="print-route-info" class="fw-bold mb-3"></p>
+          <table class="table table-bordered border-dark">
+            <thead><tr><th>Lokasi Jalan Rusak</th><th>Koordinat</th><th>Status</th></tr></thead>
+            <tbody id="print-dmg-body"></tbody>
+          </table>
+        </div>
+        <div class="mt-5 pt-5 row text-center">
+          <div class="col-6">
+            Mengetahui,<br /><br /><br />
+            <u>Kepala Logistik</u><br />
+            BPBD Provinsi Sumatera Utara
+          </div>
+          <div class="col-6">
+            Medan, <span id="sign-date"></span><br /><br /><br />
+            <u>Administrator Sistem</u><br />
+            SIM Logistik Bencana
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Database Status Indicator -->
+    <div id="db-status-fixed" class="db-status disconnected">
+      <span>Database: Offline</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="supabase_config.js"></script>
+    <script src="models.js"></script>
+    <script src="algorithm.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
