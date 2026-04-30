@@ -1204,10 +1204,9 @@ const controller = {
     let totalDistance = 0;
     let totalDuration = 0;
 
-    // Check if a coordinate is in any damage zone (with more tolerance)
+    // Check if a coordinate is in any damage zone
     const isInDamageZone = (lat, lng) => {
-      // Use larger threshold (0.008 degrees ≈ ~900 meters) to be less strict
-      const threshold = 0.008;
+      const threshold = 0.003; // ~330 meters
       for (let dp of this.damagePoints) {
         const dist = Math.sqrt(Math.pow(lat - dp.latitude, 2) + Math.pow(lng - dp.longitude, 2));
         if (dist < threshold) return true;
@@ -1215,18 +1214,63 @@ const controller = {
       return false;
     };
 
-    // Check if a route segment passes through damage zone
-    const isSegmentDangerous = (coords) => {
-      // Only mark as dangerous if the route ACTUALLY goes THROUGH the center of damage zone
-      // We allow routes that just pass near the edge
-      const threshold = 0.003; // ~300 meters for actual danger
+    // Check if a route goes through damage zone
+    const doesRoutePassDamage = (coords) => {
       for (let coord of coords) {
-        for (let dp of this.damagePoints) {
-          const dist = Math.sqrt(Math.pow(coord[0] - dp.latitude, 2) + Math.pow(coord[1] - dp.longitude, 2));
-          if (dist < threshold) return true;
-        }
+        if (isInDamageZone(coord[0], coord[1])) return true;
       }
       return false;
+    };
+
+    // Build avoidance polygons for ORS
+    const buildAvoidance = () => {
+      if (this.damagePoints.length === 0) return null;
+      const offset = 0.003; // ~300 meters buffer
+      const polygons = this.damagePoints.map((dp) => [
+        [
+          [dp.longitude - offset, dp.latitude - offset],
+          [dp.longitude + offset, dp.latitude - offset],
+          [dp.longitude + offset, dp.latitude + offset],
+          [dp.longitude - offset, dp.latitude + offset],
+          [dp.longitude - offset, dp.latitude - offset],
+        ],
+      ]);
+      return {
+        avoid_polygons: {
+          type: this.damagePoints.length === 1 ? "Polygon" : "MultiPolygon",
+          coordinates: this.damagePoints.length === 1 ? polygons[0] : polygons,
+        },
+      };
+    };
+
+    // Find alternative waypoint that avoids all damage zones
+    const findSafeWaypoint = (fromLat, fromLng, toLat, toLng) => {
+      // Try points to the sides of the direct line
+      const midLat = (fromLat + toLat) / 2;
+      const midLng = (fromLng + toLng) / 2;
+
+      // Calculate perpendicular offset
+      const dx = toLng - fromLng;
+      const dy = toLat - fromLat;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const perpX = -dy / len * 0.02; // ~2km perpendicular offset
+      const perpY = dx / len * 0.02;
+
+      const alternatives = [
+        [midLng + perpX, midLat + perpY], // Right
+        [midLng - perpX, midLat - perpY], // Left
+        [midLng + perpX * 0.5, midLat + perpY * 0.5],
+        [midLng - perpX * 0.5, midLat - perpY * 0.5],
+      ];
+
+      // Find first point that doesn't pass through damage
+      for (const alt of alternatives) {
+        if (!isInDamageZone(alt[1], alt[0])) {
+          return alt;
+        }
+      }
+
+      return null; // No safe waypoint found
     };
 
     // Process each segment
@@ -1236,7 +1280,7 @@ const controller = {
 
       if (!fromSite || !toSite) continue;
 
-      console.log(`[DIJKSTRA-ORS] Fetching: ${fromSite.siteName} → ${toSite.siteName}`);
+      console.log(`[DIJKSTRA-ORS] Processing: ${fromSite.siteName} → ${toSite.siteName}`);
 
       const fromCoord = [fromSite.longitude, fromSite.latitude];
       const toCoord = [toSite.longitude, toSite.latitude];
@@ -1244,51 +1288,12 @@ const controller = {
       let segmentCoords = null;
       let segmentDistance = 0;
       let segmentDuration = 0;
+      let usedAlternative = false;
 
-      // Always try ORS first (main strategy)
-      try {
-        const response = await fetch(
-          "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-          {
-            method: "POST",
-            headers: {
-              "Accept": "application/json, application/geo+json",
-              "Content-Type": "application/json",
-              "Authorization": this.ORS_TOKEN,
-            },
-            body: JSON.stringify({
-              coordinates: [fromCoord, toCoord],
-              elevation: false,
-              instructions: false,
-              format: "geojson",
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.features && data.features[0]) {
-            segmentCoords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            if (data.features[0].properties.summary) {
-              segmentDistance = data.features[0].properties.summary.distance;
-              segmentDuration = data.features[0].properties.summary.duration;
-            }
-            console.log(`[DIJKSTRA-ORS] Got ${segmentCoords.length} points from ORS`);
-          }
-        }
-      } catch (err) {
-        console.warn(`[DIJKSTRA-ORS] ORS failed:`, err.message);
-      }
-
-      // If ORS fails, try via intermediate waypoint
-      if (!segmentCoords) {
+      // Strategy 1: Try ORS with avoidance
+      if (!segmentCoords && this.damagePoints.length > 0) {
         try {
-          // Try 2-step route via midpoint
-          const midLat = (fromSite.latitude + toSite.latitude) / 2;
-          const midLng = (fromSite.longitude + toSite.longitude) / 2;
-
-          // First segment
-          const response1 = await fetch(
+          const response = await fetch(
             "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
             {
               method: "POST",
@@ -1298,66 +1303,217 @@ const controller = {
                 "Authorization": this.ORS_TOKEN,
               },
               body: JSON.stringify({
-                coordinates: [fromCoord, [midLng, midLat]],
+                coordinates: [fromCoord, toCoord],
+                elevation: false,
+                format: "geojson",
+                options: buildAvoidance(),
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.features && data.features[0]) {
+              const coords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+              if (!doesRoutePassDamage(coords)) {
+                segmentCoords = coords;
+                segmentDistance = data.features[0].properties.summary?.distance || 0;
+                segmentDuration = data.features[0].properties.summary?.duration || 0;
+                console.log(`[DIJKSTRA-ORS] Strategy 1 (avoidance) succeeded`);
+              } else {
+                console.log(`[DIJKSTRA-ORS] Strategy 1 failed - route still passes damage zone`);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`[DIJKSTRA-ORS] Strategy 1 failed:`, err.message);
+        }
+      }
+
+      // Strategy 2: Try with safe waypoint
+      if (!segmentCoords) {
+        const safeWaypoint = findSafeWaypoint(
+          fromSite.latitude, fromSite.longitude,
+          toSite.latitude, toSite.longitude
+        );
+
+        if (safeWaypoint) {
+          console.log(`[DIJKSTRA-ORS] Trying via safe waypoint: [${safeWaypoint[1]}, ${safeWaypoint[0]}]`);
+
+          try {
+            // First leg: from -> waypoint
+            const response1 = await fetch(
+              "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+              {
+                method: "POST",
+                headers: {
+                  "Accept": "application/json, application/geo+json",
+                  "Content-Type": "application/json",
+                  "Authorization": this.ORS_TOKEN,
+                },
+                body: JSON.stringify({
+                  coordinates: [fromCoord, safeWaypoint],
+                  elevation: false,
+                  format: "geojson",
+                }),
+              }
+            );
+
+            // Second leg: waypoint -> to
+            const response2 = await fetch(
+              "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+              {
+                method: "POST",
+                headers: {
+                  "Accept": "application/json, application/geo+json",
+                  "Content-Type": "application/json",
+                  "Authorization": this.ORS_TOKEN,
+                },
+                body: JSON.stringify({
+                  coordinates: [safeWaypoint, toCoord],
+                  elevation: false,
+                  format: "geojson",
+                }),
+              }
+            );
+
+            if (response1.ok && response2.ok) {
+              const data1 = await response1.json();
+              const data2 = await response2.json();
+
+              if (data1.features && data1.features[0] && data2.features && data2.features[0]) {
+                const coords1 = data1.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                const coords2 = data2.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+
+                // Validate both legs don't pass through damage zone
+                if (doesRoutePassDamage(coords1) || doesRoutePassDamage(coords2)) {
+                  console.log(`[DIJKSTRA-ORS] Strategy 2 failed - route still passes damage zone`);
+                } else {
+                  // Combine
+                  segmentCoords = [...coords1, ...coords2];
+                  segmentDistance = (data1.features[0].properties.summary?.distance || 0) +
+                                    (data2.features[0].properties.summary?.distance || 0);
+                  segmentDuration = (data1.features[0].properties.summary?.duration || 0) +
+                                    (data2.features[0].properties.summary?.duration || 0);
+                  usedAlternative = true;
+                  console.log(`[DIJKSTRA-ORS] Strategy 2 (via waypoint) succeeded`);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`[DIJKSTRA-ORS] Strategy 2 failed:`, err.message);
+          }
+        }
+      }
+
+      // Strategy 3: Try via multiple intermediate points
+      if (!segmentCoords) {
+        console.log(`[DIJKSTRA-ORS] Trying multi-point route...`);
+
+        // Create intermediate points at 1/3 and 2/3 of the route
+        const waypoints = [
+          fromCoord,
+          [fromCoord[0] + (toCoord[0] - fromCoord[0]) * 2 / 3, fromCoord[1] + (toCoord[1] - fromCoord[1]) * 2 / 3],
+          [fromCoord[0] + (toCoord[0] - fromCoord[0]) / 3, fromCoord[1] + (toCoord[1] - fromCoord[1]) / 3],
+          toCoord,
+        ].map(c => {
+          // Adjust each waypoint to be outside damage zones if needed
+          const wp = { lng: c[0], lat: c[1] };
+          for (let dp of this.damagePoints) {
+            const dist = Math.sqrt(Math.pow(c[1] - dp.latitude, 2) + Math.pow(c[0] - dp.longitude, 2));
+            if (dist < 0.01) {
+              // Move waypoint away from damage
+              wp.lng += (c[0] > dp.longitude ? 0.01 : -0.01);
+              wp.lat += (c[1] > dp.latitude ? 0.01 : -0.01);
+            }
+          }
+          return [wp.lng, wp.lat];
+        });
+
+        try {
+          const response = await fetch(
+            "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+            {
+              method: "POST",
+              headers: {
+                "Accept": "application/json, application/geo+json",
+                "Content-Type": "application/json",
+                "Authorization": this.ORS_TOKEN,
+              },
+              body: JSON.stringify({
+                coordinates: waypoints,
                 elevation: false,
                 format: "geojson",
               }),
             }
           );
 
-          if (response1.ok) {
-            const data1 = await response1.json();
-            if (data1.features && data1.features[0]) {
-              const coords1 = data1.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
-              segmentCoords = coords1;
-              segmentDistance = data1.features[0].properties.summary?.distance || 0;
-              segmentDuration = data1.features[0].properties.summary?.duration || 0;
-
-              // Second segment
-              const response2 = await fetch(
-                "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-                {
-                  method: "POST",
-                  headers: {
-                    "Accept": "application/json, application/geo+json",
-                    "Content-Type": "application/json",
-                    "Authorization": this.ORS_TOKEN,
-                  },
-                  body: JSON.stringify({
-                    coordinates: [[midLng, midLat], toCoord],
-                    elevation: false,
-                    format: "geojson",
-                  }),
-                }
-              );
-
-              if (response2.ok) {
-                const data2 = await response2.json();
-                if (data2.features && data2.features[0]) {
-                  const coords2 = data2.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                  // Remove last of first part to avoid duplicate, then add second part
-                  segmentCoords.pop();
-                  segmentCoords.push(...coords2);
-                  segmentDistance += data2.features[0].properties.summary?.distance || 0;
-                  segmentDuration += data2.features[0].properties.summary?.duration || 0;
-                }
+          if (response.ok) {
+            const data = await response.json();
+            if (data.features && data.features[0]) {
+              const coords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+              if (!doesRoutePassDamage(coords)) {
+                segmentCoords = coords;
+                segmentDistance = data.features[0].properties.summary?.distance || 0;
+                segmentDuration = data.features[0].properties.summary?.duration || 0;
+                usedAlternative = true;
+                console.log(`[DIJKSTRA-ORS] Strategy 3 (multi-point) succeeded`);
               }
-              console.log(`[DIJKSTRA-ORS] Used 2-step via midpoint`);
             }
           }
         } catch (err) {
-          console.warn(`[DIJKSTRA-ORS] 2-step via midpoint failed:`, err.message);
+          console.warn(`[DIJKSTRA-ORS] Strategy 3 failed:`, err.message);
         }
       }
 
-      // If still no coords, something is seriously wrong - log it
+      // Strategy 4: Direct ORS without avoidance (last resort)
       if (!segmentCoords) {
-        console.error(`[DIJKSTRA-ORS] CRITICAL: Cannot get route for ${fromSite.siteName} → ${toSite.siteName}`);
-        // Don't add any fallback line - just skip this segment
+        console.log(`[DIJKSTRA-ORS] Using direct route (no avoidance)...`);
+
+        try {
+          const response = await fetch(
+            "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+            {
+              method: "POST",
+              headers: {
+                "Accept": "application/json, application/geo+json",
+                "Content-Type": "application/json",
+                "Authorization": this.ORS_TOKEN,
+              },
+              body: JSON.stringify({
+                coordinates: [fromCoord, toCoord],
+                elevation: false,
+                format: "geojson",
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.features && data.features[0]) {
+              const coords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+              if (doesRoutePassDamage(coords)) {
+                console.log(`[DIJKSTRA-ORS] Strategy 4 failed - route still passes damage zone`);
+              } else {
+                segmentCoords = coords;
+                segmentDistance = data.features[0].properties.summary?.distance || 0;
+                segmentDuration = data.features[0].properties.summary?.duration || 0;
+                console.log(`[DIJKSTRA-ORS] Strategy 4 (direct) used`);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`[DIJKSTRA-ORS] Strategy 4 failed:`, err.message);
+        }
+      }
+
+      // If still no coords, skip this segment
+      if (!segmentCoords) {
+        console.warn(`[DIJKSTRA-ORS] All strategies failed for segment ${fromSite.siteName} → ${toSite.siteName}`);
         continue;
       }
 
-      // Add to route (remove duplicate junction point first)
+      // Add to route
       if (allCoords.length > 0) {
         allCoords.pop();
       }
@@ -1366,17 +1522,19 @@ const controller = {
       totalDistance += segmentDistance;
       totalDuration += segmentDuration;
 
-      console.log(`[DIJKSTRA-ORS] Segment added with ${segmentCoords.length} points`);
+      if (usedAlternative) {
+        console.log(`[DIJKSTRA-ORS] Segment used alternative routing`);
+      }
     }
 
-    console.log(`[DIJKSTRA-ORS] Done. ${allCoords.length} total points`);
+    console.log(`[DIJKSTRA-ORS] Done. ${allCoords.length} points`);
 
     if (allCoords.length < 2) {
       document.getElementById("route-path").innerHTML = `
         <div class="text-warning fw-bold mb-1">
           <i class="bi bi-exclamation-triangle me-1"></i> RUTE TERBATAS
         </div>
-        <div class="small text-muted">Data jalan terbatas untuk jalur ini.</div>
+        <div class="small text-muted">Tidak ada jalur aman yang tersedia.</div>
       `;
       return;
     }
@@ -1391,15 +1549,12 @@ const controller = {
       }
     }
 
-    // Check final route - only mark as dangerous if it ACTUALLY goes through damage center
-    const finalDanger = isSegmentDangerous(cleanCoords);
-
     // Remove existing layer
     if (this.currentRouteLayer) {
       this.map.removeLayer(this.currentRouteLayer);
     }
 
-    // Draw - always use green if possible (unless clearly dangerous)
+    // Draw
     this.currentRouteLayer = L.polyline(cleanCoords, {
       color: "#27ae60",
       weight: 6,
@@ -1417,7 +1572,7 @@ const controller = {
 
     let uiHTML = `
       <div class="text-success fw-bold mb-1">
-        <i class="bi bi-check-circle me-1"></i> RUTE DITEMUKAN
+        <i class="bi bi-check-circle me-1"></i> RUTE AMAN DITEMUKAN
       </div>
       <div class="small mb-1">${start.siteName} <i class="bi bi-arrow-right mx-1"></i> ${dest.siteName}</div>
       <div class="small text-muted">${distanceKm} km | Est: ${durationMin} menit</div>
